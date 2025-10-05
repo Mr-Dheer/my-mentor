@@ -338,9 +338,18 @@ class MENTOR(GeneralRecommender):
         neg_scores = torch.sum(user_tensor * neg_item_tensor, dim=1)
         return pos_scores, neg_scores
 
-    def buildItemGraph(self, h):
-        for i in range(self.n_layers):
-            h = torch.sparse.mm(self.mm_adj, h)
+    # This was the original
+    # def buildItemGraph(self, h):
+    #     for i in range(self.n_layers):
+    #         h = torch.sparse.mm(self.mm_adj, h)
+    #     return h
+    def buildItemGraph(self, item_rep):
+        h = item_rep
+    # ✨ Add this line:
+        mm_adj = self.mm_adj.to(h.device)
+        mm_adj = mm_adj.coalesce().float()
+        h = h.float()
+        h = torch.sparse.mm(mm_adj, h)
         return h
 
     def fit_Gaussian_dis(self):

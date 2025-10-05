@@ -192,37 +192,40 @@ class Trainer(AbstractTrainer):
         Args:
             train_data (DataLoader): the train data
             valid_data (DataLoader, optional): the valid data, default: None.
-                                               If it's None, the early_stopping is invalid.
             test_data (DataLoader, optional): None
-            verbose (bool, optional): whether to write training and evaluation information to logger, default: True
-            saved (bool, optional): whether to save the model parameters, default: True
+            verbose (bool, optional): whether to write training/eval info to logger
+            saved (bool, optional): whether to save the model parameters
 
         Returns:
-             (float, dict): best valid score and best valid result. If valid_data is None, it returns (-1, None)
+             (float, dict, dict): best valid score, best valid result, test-upon-best
         """
+        ckpt_dir = os.path.abspath(self.config['checkpoint_dir'])
+        best_ckpt_path = os.path.join(ckpt_dir, f"{self.config['model']}-{self.config['dataset']}-best.pth")
+        final_ckpt_path = os.path.join(ckpt_dir, f"{self.config['model']}-{self.config['dataset']}-final.pth")
+        os.makedirs(ckpt_dir, exist_ok=True)
+
+        best_saved_once = False
+
         for epoch_idx in range(self.start_epoch, self.epochs):
             # train
             training_start_time = time()
             self.model.pre_epoch_processing()
             train_loss, _ = self._train_epoch(train_data, epoch_idx)
-            if torch.is_tensor(train_loss):
-                # get nan loss
+            if torch.is_tensor(train_loss):  # NaN or early exit
                 break
-            #for param_group in self.optimizer.param_groups:
-            #    print('======lr: ', param_group['lr'])
+
             self.lr_scheduler.step()
 
             self.train_loss_dict[epoch_idx] = sum(train_loss) if isinstance(train_loss, tuple) else train_loss
             training_end_time = time()
-            train_loss_output = \
-                self._generate_train_loss_output(epoch_idx, training_start_time, training_end_time, train_loss)
+            train_loss_output = self._generate_train_loss_output(epoch_idx, training_start_time, training_end_time, train_loss)
             post_info = self.model.post_epoch_processing()
             if verbose:
                 self.logger.info(train_loss_output)
                 if post_info is not None:
                     self.logger.info(post_info)
 
-            # eval: To ensure the test result is the best model under validation data, set self.eval_step == 1
+            # eval every eval_step
             if (epoch_idx + 1) % self.eval_step == 0:
                 valid_start_time = time()
                 valid_score, valid_result = self._valid_epoch(valid_data)
@@ -230,15 +233,16 @@ class Trainer(AbstractTrainer):
                     valid_score, self.best_valid_score, self.cur_step,
                     max_step=self.stopping_step, bigger=self.valid_metric_bigger)
                 valid_end_time = time()
-                valid_score_output = "epoch %d evaluating [time: %.2fs, valid_score: %f]" % \
-                                     (epoch_idx, valid_end_time - valid_start_time, valid_score)
-                valid_result_output = 'valid result: \n' + dict2str(valid_result)
-                # test
+
+                # test-upon-valid
                 _, test_result = self._valid_epoch(test_data)
+
                 if verbose:
-                    self.logger.info(valid_score_output)
-                    self.logger.info(valid_result_output)
+                    self.logger.info("epoch %d evaluating [time: %.2fs, valid_score: %f]" %
+                                     (epoch_idx, valid_end_time - valid_start_time, valid_score))
+                    self.logger.info('valid result: \n' + dict2str(valid_result))
                     self.logger.info('test result: \n' + dict2str(test_result))
+
                 if update_flag:
                     update_output = '██ ' + self.config['model'] + '--Best validation results updated!!!'
                     if verbose:
@@ -246,13 +250,33 @@ class Trainer(AbstractTrainer):
                     self.best_valid_result = valid_result
                     self.best_test_upon_valid = test_result
 
+                    # ===== SAVE BEST =====
+                    if saved:
+                        torch.save(self.model.state_dict(), best_ckpt_path)
+                        best_saved_once = True
+                        if verbose:
+                            self.logger.info(f"Saved BEST model to {best_ckpt_path}")
+
                 if stop_flag:
                     stop_output = '+++++Finished training, best eval result in epoch %d' % \
                                   (epoch_idx - self.cur_step * self.eval_step)
                     if verbose:
                         self.logger.info(stop_output)
                     break
+
+        # ===== SAVE FINAL =====
+        if saved:
+            torch.save(self.model.state_dict(), final_ckpt_path)
+            if verbose:
+                self.logger.info(f"Saved FINAL model to {final_ckpt_path}")
+            # if best was never improved/saved, at least provide a best file identical to final
+            if not best_saved_once:
+                torch.save(self.model.state_dict(), best_ckpt_path)
+                if verbose:
+                    self.logger.info(f"No BEST checkpoint during training; copied FINAL to {best_ckpt_path}")
+
         return self.best_valid_score, self.best_valid_result, self.best_test_upon_valid
+
 
 
     @torch.no_grad()

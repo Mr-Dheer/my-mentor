@@ -1,0 +1,24 @@
+# Could not pin lmdb==1.7.3: HTTP Error 404: Not Found
+lmdb==1.7.3
+# Could not pin matplotlib==3.10.6: HTTP Error 404: Not Found
+matplotlib==3.10.6
+# Could not pin numpy==2.3.3: HTTP Error 404: Not Found
+numpy==2.3.3
+# Could not pin pandas==2.3.2: HTTP Error 404: Not Found
+pandas==2.3.2
+# Could not pin Pillow==11.3.0: HTTP Error 404: Not Found
+Pillow==11.3.0
+# Could not pin PyYAML==6.0.3: HTTP Error 404: Not Found
+PyYAML==6.0.3
+# Could not pin scipy==1.16.2: HTTP Error 404: Not Found
+scipy==1.16.2
+# Could not pin torch==2.8.0: HTTP Error 404: Not Found
+torch==2.8.0
+# Could not pin torch_geometric==2.6.1: HTTP Error 404: Not Found
+torch_geometric==2.6.1
+# Could not pin torch_scatter==2.1.2: HTTP Error 404: Not Found
+torch_scatter==2.1.2
+# Could not pin torchvision==0.23.0: HTTP Error 404: Not Found
+torchvision==0.23.0
+# Could not pin tqdm==4.67.1: HTTP Error 404: Not Found
+tqdm==4.67.1

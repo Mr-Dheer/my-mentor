@@ -535,11 +535,11 @@ class GCN(torch.nn.Module):
 
         h = self.conv_embed_1(x, edge_index)
         if perturbed:
-            random_noise = torch.rand_like(h).cuda()
+            random_noise = torch.rand_like(h).to(h.device)
             h += torch.sign(h) * F.normalize(random_noise, dim=-1) * 0.1
         h_1 = self.conv_embed_1(h, edge_index)
         if perturbed:
-            random_noise = torch.rand_like(h).cuda()
+            random_noise = torch.rand_like(h_1).to(h_1.device)
             h_1 += torch.sign(h_1) * F.normalize(random_noise, dim=-1) * 0.1
         # h_2 = self.conv_embed_1(h_1, edge_index)
 
